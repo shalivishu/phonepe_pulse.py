@@ -5,7 +5,9 @@ import streamlit as st
 import plotly.express as px
 import os
 import json
+import git
 from git.repo.base import Repo
+import csv
 
 
 
@@ -640,14 +642,13 @@ insert_top_user_data(df_top_user, mycursor, mydb)
 
 
 
+
 import streamlit as st
 import pandas as pd
-import plotly.express as px
+import numpy as np
 from streamlit_option_menu import option_menu
-from PIL import Image
-
-
-
+import pydeck as pdk
+import geopandas as gpd
 
 # Load CSV files
 csv_files = {
@@ -662,6 +663,9 @@ csv_files = {
 # Load all CSV files
 data = {key: pd.read_csv(path) for key, path in csv_files.items()}
 
+# Load India GeoJSON Data
+india_geojson = gpd.read_file(r"C:\Users\shali\OneDrive\Desktop\test\state\india_state.geojson")
+
 
 def load_data(file_path):
     return pd.read_csv(file_path)
@@ -673,27 +677,16 @@ garamond_bold_style2 = "font-family: Garamond, sans-serif; font-weight: bold; co
 # Main Streamlit function
 def main():
         st.set_page_config(
-            page_title="Phonepe Pulse Data Visualization",
-            page_icon="📊",
-            layout="wide",
-            initial_sidebar_state="expanded",
-            menu_items={
-                "About": "<h1 style='" + garamond_bold_style + "'>About:</h1> The dashboard is created for user-friendly data visualization. Data has been cloned from the Phonepe Pulse Github Repository."
-            }
+        page_title="Phonepe Pulse Data Visualization",
+        page_icon="📊",
+        layout="wide",
+        initial_sidebar_state="expanded",
+        menu_items="<h1 style='" + garamond_bold_style + "'>About:</h1> The dashboard is created for user-friendly data visualization. Data has been cloned from the Phonepe Pulse Github Repository."
         )
         
-        st.markdown(f"<h1 style='{garamond_bold_style}'>Phonepe Pulse Dashboard</h1>", unsafe_allow_html=True)
-        st.sidebar.markdown(f"<h2 style='{garamond_bold_style2}'>Hello!!!</h2>", unsafe_allow_html=True)
-
-         # Load the image with PIL
-        image_path1 = "C:/Users/shali/OneDrive/Desktop/test/phonepe_image.jpeg"
-        pil_image = Image.open(image_path1)
-
-        # Specify the image width (adjust as needed)
-        image_width = 1000
-
-        # Display the PIL image with the specified width
-        st.image(pil_image, width=image_width)
+        st.title("<span style='" + garamond_bold_style + "'>Phonepe Pulse Dashboard</span>", unsafe_allow_html=True)
+        st.sidebar.header(":wave: <span style='" + garamond_bold_style2 + "'>Hello!!! :iphone:</span>", unsafe_allow_html=True)
+    
         
         # Creating option menu in the side bar
         with st.sidebar:
@@ -738,23 +731,24 @@ def main():
                 Quarter = st.slider("Quarter", min_value=1, max_value=4)
                 
             with colum2:
-                st.info(
+                info_content = f"""
+                    <p style='{garamond_bold_style2}'>
+                        #### From this menu we can get insights like :
+                        - Overall ranking on a particular Year and Quarter.
+                        - Top 10 State, District, Pincode based on Total number of transaction and Total amount spent on phonepe.
+                        - Top 10 State, District, Pincode based on Total phonepe users and their app opening frequency.
+                        - Top 10 mobile brands and its percentage based on the how many people use phonepe.
+                    </p>
                 """
-                #### From this menu we can get insights like :
-                - Overall ranking on a particular Year and Quarter.
-                - Top 10 State, District, Pincode based on Total number of transaction and Total amount spent on phonepe.
-                - Top 10 State, District, Pincode based on Total phonepe users and their app opening frequency.
-                - Top 10 mobile brands and its percentage based on the how many people use phonepe.
-                """,icon="🔍"
-                )
-                
+            st.info(info_content, icon="🔍")
+            
             # Top Charts - TRANSACTIONS    
             if Type == "Transactions":
                 col1, col2 = st.columns([1, 1], gap="small")
 
                 with col1:
                     st.markdown("<h1 style='" + garamond_bold_style + "'>State</h1>", unsafe_allow_html=True)
-                    df = data['File 5']  
+                    df = data['File 5']  # Load data from the appropriate CSV file
                     df = df[(df['Year'] == Year) & (df['Quarter'] == Quarter)]
                     df = df.groupby('State').agg({'Transaction_count': 'sum', 'Transaction_amount': 'sum'}).reset_index()
                     df = df.nlargest(10, 'Transaction_amount')
@@ -763,14 +757,12 @@ def main():
                                 labels={'Transaction_count': 'Transactions_Count'})
 
                     fig.update_traces(textposition='inside', textinfo='percent+label')
-                    fig.update_layout(height=500, width=600) 
+                    fig.update_layout(height=500, width=600)  # Set the height and width as needed
                     st.plotly_chart(fig, use_container_width=True)
-                    
-                    st.markdown("<p style='" + garamond_bold_style2 + "'>According to the latest data, Karnataka and Telangana have emerged as the leading states in India for PhonePe usage, accounting for the years 2018 to 2022, as depicted in the pie chart above.</h1>", unsafe_allow_html=True)
 
                 with col2:
                     st.markdown("<h1 style='" + garamond_bold_style + "'>District</h1>", unsafe_allow_html=True)
-                    df = data['File 3'] 
+                    df = data['File 3']  # Load data from the appropriate CSV file
                     df = df[(df['Year'] == Year) & (df['Quarter'] == Quarter)]
                     df = df.groupby('District').agg({'Count': 'sum', 'Amount': 'sum'}).reset_index()
                     df.Count = df.Count.astype(float)
@@ -780,10 +772,8 @@ def main():
                                 labels={'Count': 'Transactions_Count'})
 
                     fig.update_traces(textposition='inside', textinfo='percent+label')
-                    fig.update_layout(height=500, width=600)  
+                    fig.update_layout(height=500, width=600)  # Set the height and width as needed
                     st.plotly_chart(fig, use_container_width=True)
-                    
-                    st.markdown("<h1 style='" + garamond_bold_style2 + "'>Bengaluru Urban district is a hotspot for PhonePe payments, with a significant share of all PhonePe transactions in India, as evidenced in the pie chart..</h1>", unsafe_allow_html=True)
                             
             if Type == "Users":
                 
@@ -794,7 +784,7 @@ def main():
                     if Year == 2022 and Quarter in [2, 3, 4]:
                         st.markdown("#### Sorry No Data to Display for 2022 Qtr 2,3,4</h1>", unsafe_allow_html=True)
                     else:
-                        df = data['File 2']  
+                        df = data['File 2']  # Load data from the appropriate CSV file
                         df = df[(df['Year'] == Year) & (df['Quarter'] == Quarter)]
                         df = df.groupby('Brands').agg({'Count': 'sum', 'Percentage': 'mean'}).reset_index()
                         df['Avg_Percentage'] = df['Percentage'] * 100
@@ -802,68 +792,53 @@ def main():
                         fig = px.bar(df, title='Top 10 Brands',
                                     x="Count", y="Brands", orientation='h', color='Avg_Percentage',
                                     color_continuous_scale=px.colors.sequential.Agsunset)
-                        fig.update_layout(height=600, width=800)  
+                        fig.update_layout(height=600, width=800)  # Set the height and width as needed
                         st.plotly_chart(fig, use_container_width=True)
-                        
-                        st.markdown("<p style='" + garamond_bold_style2 + "'> It was found that Xiaomi brand users are among the highest users of PhonePe in India, with million transactions, as visualized in the above bar chart..</h1>", unsafe_allow_html=True)
                         
                 with col2:
                     st.markdown("<h1 style='" + garamond_bold_style + "'>District</h1>", unsafe_allow_html=True)
-                    if Year == 2022 and Quarter in [2, 3, 4]:
-                        st.markdown("#### Sorry No Data to Display for 2022 Qtr 2,3,4</h1>", unsafe_allow_html=True)
-                    else:
-                        df = data['File 4'] 
-                        df = df[(df['Year'] == Year) & (df['Quarter'] == Quarter)]
-                        df = df.groupby('District').agg({'RegisteredUser': 'sum', 'AppOpens': 'sum'}).reset_index()
-                        df.RegisteredUser = df.RegisteredUser.astype(float)
-                        df = df.nlargest(10, 'RegisteredUser')  # Select only the top 10 districts
-                        fig = px.bar(df, title='Top 10 Districts',
-                                    x="RegisteredUser", y="District", orientation='h', color='RegisteredUser',
-                                    color_continuous_scale=px.colors.sequential.Agsunset)
-                        fig.update_layout(height=600, width=800) 
-                        st.plotly_chart(fig, use_container_width=True)
-                        
-                        st.markdown("<h1 style='" + garamond_bold_style2 + "'>In Bengaluru Urban district,  million users are actively using PhonePe for their transactions, making it the top choice for digital payments in the region, as demonstrated in the above bar chart..</h1>", unsafe_allow_html=True)
-                        
+                    df = data['File 4']  # Load data from the appropriate CSV file
+                    df = df[(df['Year'] == Year) & (df['Quarter'] == Quarter)]
+                    df = df.groupby('District').agg({'RegisteredUser': 'sum', 'AppOpens': 'sum'}).reset_index()
+                    df.RegisteredUser = df.RegisteredUser.astype(float)
+                    df = df.nlargest(10, 'RegisteredUser')  # Select only the top 10 districts
+                    fig = px.bar(df, title='Top 10 Districts',
+                                x="RegisteredUser", y="District", orientation='h', color='RegisteredUser',
+                                color_continuous_scale=px.colors.sequential.Agsunset)
+                    fig.update_layout(height=600, width=800)  # Set the height and width as needed
+                    st.plotly_chart(fig, use_container_width=True)
+                    
                 col3, col4 = st.columns([2, 2], gap="small")   
 
                 with col3:
                     st.markdown("<h1 style='" + garamond_bold_style + "'>Pincode</h1>", unsafe_allow_html=True)
-                    if Year == 2022 and Quarter in [2, 3, 4]:
-                        st.markdown("#### Sorry No Data to Display for 2022 Qtr 2,3,4</h1>", unsafe_allow_html=True)
-                    else:
-                        df = data['File 6'] 
-                        df = df[(df['Year'] == Year) & (df['Quarter'] == Quarter)]
-                        df = df.groupby('Pincode').agg({'RegisteredUsers': 'sum'}).reset_index()
-                        df = df.nlargest(10, 'RegisteredUsers')  # Select only the top 10 pincodes based on RegisteredUsers
-                        fig = px.bar(df, x='Pincode', y='RegisteredUsers', title='Top 10 Pincodes',
-                                    color='RegisteredUsers', color_continuous_scale=px.colors.sequential.Agsunset)
-                        fig.update_layout(height=600, width=800) 
-                        st.plotly_chart(fig, use_container_width=True)
+                    df = data['File 6']  # Load data from the appropriate CSV file
+                    df = df[(df['Year'] == Year) & (df['Quarter'] == Quarter)]
+                    df = df.groupby('Pincode').agg({'RegisteredUsers': 'sum'}).reset_index()
+                    df = df.nlargest(10, 'RegisteredUsers')  # Select only the top 10 pincodes based on RegisteredUsers
+                    fig = px.bar(df, x='Pincode', y='RegisteredUsers', title='Top 10 Pincodes',
+                                color='RegisteredUsers', color_continuous_scale=px.colors.sequential.Agsunset)
+                    fig.update_layout(height=600, width=800)  # Set the height and width as needed
+                    st.plotly_chart(fig, use_container_width=True)
 
-                        st.markdown("<h1 style='" + garamond_bold_style2 + "'>In the bar chart above, it's evident that Pincode 201301 in Uttar Pradesh stands out as the highest user of PhonePe for transactions, with a significant volume of usage..</h1>", unsafe_allow_html=True)
-                        
-                    
+
                 with col4:
                     st.markdown("<h1 style='" + garamond_bold_style + "'>State</h1>", unsafe_allow_html=True)
-                    if Year == 2022 and Quarter in [2, 3, 4]:
-                        st.markdown("#### Sorry No Data to Display for 2022 Qtr 2,3,4</h1>", unsafe_allow_html=True)
-                    else:
-                        df = data['File 4']
-                        df = df[(df['Year'] == Year) & (df['Quarter'] == Quarter)]
-                        df_state = df.groupby('State').agg({'RegisteredUser': 'sum', 'AppOpens': 'sum'}).reset_index()
-                        df_state = df_state.nlargest(10, 'RegisteredUser')  # Select only the top 10 states based on RegisteredUser
-                        fig = px.bar(df_state, x='State', y='RegisteredUser', title='Top 10 States',
-                                    color='AppOpens', color_continuous_scale=px.colors.sequential.Agsunset)
-                        fig.update_layout(height=600, width=800) 
-                        st.plotly_chart(fig, use_container_width=True)
-                    
-                        st.markdown("<h1 style='" + garamond_bold_style2 + "'>Open apps are most popular in Maharashtra, where they see the highest level of usage compared to other states..</h1>", unsafe_allow_html=True)
-            
-        # Explore Data
+                    df = data['File 4']  # Load data from the appropriate CSV file
+                    df = df[(df['Year'] == Year) & (df['Quarter'] == Quarter)]
+                    df_state = df.groupby('State').agg({'RegisteredUser': 'sum', 'AppOpens': 'sum'}).reset_index()
+                    df_state = df_state.nlargest(10, 'RegisteredUser')  # Select only the top 10 states based on RegisteredUser
+                    fig = px.bar(df_state, x='State', y='RegisteredUser', title='Top 10 States',
+                                color='AppOpens', color_continuous_scale=px.colors.sequential.Agsunset)
+                    fig.update_layout(height=600, width=800)  # Set the height and width as needed
+                    st.plotly_chart(fig, use_container_width=True)
+                
+        
+        
+            # Explore Data
         if selected == "Explore Data":
             st.markdown("<h1 style='" + garamond_bold_style + "'>Explore Data</h1>", unsafe_allow_html=True)
-            File = st.sidebar.selectbox("**Select File**", ("Map Transactions", "Map Users"))
+            File = st.sidebar.selectbox("**Select File**", ("File 3 (Map Transactions)", "File 4 (Map Users)"))
             colum1, colum2 = st.columns([1, 1.5], gap="large")
 
             with colum1:
@@ -881,93 +856,94 @@ def main():
                 )
 
             # Load data based on user selection
-            if File == "Map Transactions":
-                df_file3_map = data['File 3']
+            if File == "File 3 (Map Transactions)":
+                df_file3_map = data['File 3']  # Load data from the appropriate CSV file
                 st.write("<h1 style='" + garamond_bold_style2 + "'>Loaded data from Map Transactions.</h1>", unsafe_allow_html=True)
 
-                #Print the shape of the DataFrame
+                # Debugging: Print the shape of the DataFrame
                 shape_info = f"<h1 style='{garamond_bold_style2}'>DataFrame Shape: {df_file3_map.shape}</h1>"
                 st.write(shape_info, unsafe_allow_html=True)
 
-                #Print the values of Year and Quarter
+                # Debugging: Print the values of Year and Quarter
                 year_info = f"<p style='{garamond_bold_style2}'>Selected Year: {Year}</p>"
                 quarter_info = f"<p style='{garamond_bold_style2}'>Selected Quarter: {Quarter}</p>"
 
                 st.write(year_info, unsafe_allow_html=True)
                 st.write(quarter_info, unsafe_allow_html=True)
 
+                # Filter data for File 3
+                df_file3_map = df_file3_map[(df_file3_map['Year'] == Year) & (df_file3_map['Quarter'] == Quarter)]
 
-                # Filter data based on user selection
-                filtered_data = df_file3_map[(df_file3_map["Year"] == Year) & (df_file3_map["Quarter"] == Quarter)]
-
-                # Create a density heatmap using Plotly Express
-                heatmap_fig = px.density_heatmap(
-                    filtered_data, 
-                    x='Quarter',  
-                    y='State',    
-                    z='Amount',  
-                    color_continuous_scale="Agsunset"
-                    
+            # Create a PyDeck layer for File 4
+                layer = pdk.Layer(
+                    'ScatterplotLayer',
+                    data=df_file3_map,
+                    get_position='[Longitude, Latitude]',
+                    get_color='Amount',  # Use the 'Amount' column for color mapping
+                    get_radius=2000,
+                    color_range='[[0, 0, 255], [255, 0, 0]]',  # Specify color range (from blue to red)
+                    color_scale='linear'
                 )
 
-                # Display the density heatmap in Streamlit
-                st.plotly_chart(heatmap_fig, use_container_width=True)
-                                
-                
-            elif File == "Map Users":
+                # Set the view state
+                view_state = pdk.ViewState(latitude=18.5204, longitude=73.8567, zoom=4)
+
+                # Render the map
+                r = pdk.Deck(layers=[layer], initial_view_state=view_state)
+                st.pydeck_chart(r)
+
+            elif File == "File 4 (Map Users)":
                 df_file4_map = data['File 4']  # Load data from the appropriate CSV file
                 st.write("<h1 style='" + garamond_bold_style2 + "'>Loaded data from Map Users.</h1>", unsafe_allow_html=True)
 
-                #Print the shape of the DataFrame
+                # Debugging: Print the shape of the DataFrame
                 shape_info = f"<h1 style='{garamond_bold_style2}'>DataFrame Shape: {df_file4_map.shape}</h1>"
                 st.write(shape_info, unsafe_allow_html=True)
 
-                #Print the values of Year and Quarter
+                # Debugging: Print the values of Year and Quarter
                 year_info = f"<p style='{garamond_bold_style2}'>Selected Year: {Year}</p>"
                 quarter_info = f"<p style='{garamond_bold_style2}'>Selected Quarter: {Quarter}</p>"
 
                 st.write(year_info, unsafe_allow_html=True)
                 st.write(quarter_info, unsafe_allow_html=True)
 
-                # Filter data based on user selection
+                # Filter data for File 4
                 df_file4_map = df_file4_map[(df_file4_map['Year'] == Year) & (df_file4_map['Quarter'] == Quarter)]
 
-                
-                # Create a treemap
-                fig = px.treemap(
-                    df_file4_map,
-                    path=['State', 'District'],  
-                    values='RegisteredUser',  
-                    color='RegisteredUser',  
-                    color_continuous_scale='Agsunset',  
-                    title='Treemap of Users',
-                    
-                    # The size of the treemap
-                    width=1000,  
-                    height=2000,  
-                                    
-                    
+
+                # Create a PyDeck layer for File 4
+                layer = pdk.Layer(
+                    'ScatterplotLayer',
+                    data=df_file4_map,
+                    get_position='[Longitude, Latitude]',
+                    get_color='[255, 0, 0]',  # Use the 'RegisteredUser' column for color mapping
+                    get_radius=2000,
+                    color_range='[[0, 0, 255], [255, 0, 0]]',  # Specify color range (from blue to red)
+                    color_scale='linear'
                 )
 
-                st.plotly_chart(fig, use_container_width=True)
+                # Set the view state
+                view_state = pdk.ViewState(latitude=18.5204, longitude=73.8567, zoom=4)
 
+                # Render the map
+                r = pdk.Deck(layers=[layer], initial_view_state=view_state)
+                st.pydeck_chart(r)
+            
                     
         
         
         elif selected == "About":
             
-            st.markdown("<h1 style='" + garamond_bold_style + "'>About PhonePe Pulse Data Visualization</h1>", unsafe_allow_html=True)
-            st.markdown("<p style='" + garamond_bold_style2 + "'>The PhonePe Pulse Data Visualization Dashboard is a powerful tool designed to help you explore and gain insights into digital transactions and user behavior on the PhonePe platform. It offers a user-friendly interface with interactive charts and visualizations to make data analysis easy and informative.</p>", unsafe_allow_html=True)
-            st.markdown("<hr>", unsafe_allow_html=True) 
             
-            st.markdown("<h2 style='" + garamond_bold_style + "'>Purpose of the App</h2>", unsafe_allow_html=True)
-            st.markdown("<p style='" + garamond_bold_style2 + "'>The primary purpose of this app is to provide a comprehensive view of PhonePe's digital pulse. Whether you're interested in understanding transaction trends, top-performing regions, or user behavior, this app can help you explore the data efficiently.</p>", unsafe_allow_html=True)
-            st.markdown("<hr>", unsafe_allow_html=True) 
+
+            # Apply the style to the entire content
+            st.markdown("<h2 style='" + garamond_bold_style + "'>About This App</h2>", unsafe_allow_html=True)
+            st.markdown("<p style='" + garamond_bold_style2 + "'>🌟 Welcome to the About section! Here, you can learn more about the app's purpose, features, and usage.</p>", unsafe_allow_html=True)
+            st.markdown("<hr>", unsafe_allow_html=True)  # Add a horizontal line for separation
 
             st.markdown("<h3 style='" + garamond_bold_style + "'>App Description</h3>", unsafe_allow_html=True)
             st.markdown("<p style='" + garamond_bold_style2 + "'>📊 This app provides insights into transaction data and user distribution across regions.</p>", unsafe_allow_html=True)
             st.markdown("<hr>", unsafe_allow_html=True)
-            
 
             st.markdown("<h3 style='" + garamond_bold_style + "'>Features</h3>", unsafe_allow_html=True)
             st.markdown("<p style='" + garamond_bold_style2 + "'>🔍 Visualize transaction and user data on maps.</p>", unsafe_allow_html=True)
@@ -975,7 +951,7 @@ def main():
             st.markdown("<p style='" + garamond_bold_style2 + "'>🗺️ Gain insights into regional distribution of transactions and users.</p>", unsafe_allow_html=True)
             st.markdown("<hr>", unsafe_allow_html=True)
 
-            st.markdown("<h3 style='" + garamond_bold_style + "'>How To Use</h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='" + garamond_bold_style + "'>Instructions</h3>", unsafe_allow_html=True)
             st.markdown("<p style='" + garamond_bold_style2 + "'>1. Use the sidebar to select 'Explore Data'.</p>", unsafe_allow_html=True)
             st.markdown("<p style='" + garamond_bold_style2 + "'>2. Choose the file type ('Map Transactions' or 'Map Users').</p>", unsafe_allow_html=True)
             st.markdown("<p style='" + garamond_bold_style2 + "'>3. Adjust the year and quarter sliders to filter data.</p>", unsafe_allow_html=True)
@@ -987,11 +963,11 @@ def main():
             st.markdown("<hr>", unsafe_allow_html=True)
 
             st.markdown("<h3 style='" + garamond_bold_style + "'>Contact Us</h3>", unsafe_allow_html=True)
-            st.markdown("<p style='" + garamond_bold_style2 + "'>📧 If you have any questions, suggestions, or feedback, feel free to contact us at shaviskrit@gmail.com.</p>", unsafe_allow_html=True)
+            st.markdown("<p style='" + garamond_bold_style2 + "'>📧 If you have any questions, suggestions, or feedback, feel free to contact us at contact@example.com.</p>", unsafe_allow_html=True)
             st.markdown("<hr>", unsafe_allow_html=True)
 
             st.markdown("<h3 style='" + garamond_bold_style + "'>Data Sources</h3>", unsafe_allow_html=True)
-            st.markdown("<p style='" + garamond_bold_style2 + "'>📂 The data used in this app extracted from various sources, including aggregated transaction and user data, providing a comprehensive view of PhonePe's digital ecosystem.</p>", unsafe_allow_html=True)
+            st.markdown("<p style='" + garamond_bold_style2 + "'>📂 The data used in this app comes from various sources, including aggregated transaction and user data.</p>", unsafe_allow_html=True)
             st.markdown("<hr>", unsafe_allow_html=True)
 
             st.markdown("<h3 style='" + garamond_bold_style + "'>Acknowledgments</h3>", unsafe_allow_html=True)
@@ -1002,14 +978,10 @@ def main():
             st.markdown("<p style='" + garamond_bold_style2 + "'>🚀 We are committed to enhancing this app with more features and functionalities in future updates.</p>", unsafe_allow_html=True)
             st.markdown("<hr>", unsafe_allow_html=True)
 
-            st.markdown("<h3 style='" + garamond_bold_style + "'>Credits and Thanks </h3>", unsafe_allow_html=True)
+            st.markdown("<h3 style='" + garamond_bold_style + "'>Credits and Thanks</h3>", unsafe_allow_html=True)
             st.markdown("<p style='" + garamond_bold_style2 + "'>🙌 Thank you for using our app. We appreciate your support!</p>", unsafe_allow_html=True)
-            st.markdown("<hr>", unsafe_allow_html=True)
-            
-            st.markdown("<h3 style='" + garamond_bold_style + "'>Version</h3>", unsafe_allow_html=True)        
-            st.markdown("<p style='" + garamond_bold_style2 + "'>PhonePe Pulse Data Visualization App v1.0</p>", unsafe_allow_html=True)
-            st.markdown("<hr>", unsafe_allow_html=True)
-            
+                    
+    
             
 if __name__ == "__main__":
     main()
